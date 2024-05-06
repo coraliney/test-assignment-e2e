@@ -13,13 +13,15 @@ describe("exploring search field", () => {
 
 describe("exploring movies", () => {
   it("should search for movies with born in title", () => {
+    cy.intercept("GET", "http://omdbapi.com/*").as("getmovie")
     cy.visit("http://localhost:1234");
     cy.get("input").type("born");
     cy.get("button").click();
+    cy.wait("@getmovie").its("request.url").should("contain", "s=born");
   });
   it("Should find first h3", () => {
-    cy.visit("http://localhost:1234");
     cy.intercept("GET", "http://omdbapi.com/*");
+    cy.visit("http://localhost:1234");
     cy.get("input").type("Star");
     cy.get("button").click();
     cy.get("h3:first").contains("New");
@@ -32,6 +34,7 @@ describe("exploring movies with an error", () => {
     cy.get("input").clear(); //clearar min input
     cy.get("button").click();
     cy.get("input").should("have.value", "");
+    cy.get("p").contains("Inga sökresultat att visa");
   });
 
   it("should display empty list when user writes no-name movie", () => {
@@ -40,31 +43,22 @@ describe("exploring movies with an error", () => {
     cy.get("input").type("there is no movie here");
     cy.get("input").should("have.value", "there is no movie here");
     cy.get("button").click();
-    cy.get("p").should("have.length", 0);
+    cy.get("div#movie-container > div").should("have.length", 0);
   });
 });
 
-describe("the site in itself", () => {
-  //lägger till denna igen annars fungerar inte koden nedanför. Försökt hitta en clearkod som "startar om/laddar om" sidan
-  it("should update page everytime I try a new test", () => {
-    cy.visit("http://localhost:1234");
-  });
-});
 
 describe("exploring movies with an error", () => {
-  it("Should simulate server error", () => {
-    cy.visit("http://localhost:1234");
-    cy.get("#searchText")
-      .type("error movie")
-      .should("have.value", "error movie");
-    cy.intercept("GET", "http://omdbapi.com/*", { statusCode: 500 }).as(
-      "serverError"
-    );
-    cy.get("#search").click();
-    cy.wait("@serverError");
-    cy.contains("Inga sökresultat att visa");
+  it("should get errormsg400", () => {
+    cy.request({
+    method: "GET",
+    url: "http://omdbapi.com/*",
+    failOnStatusCode: false,    
+  }).as("error");
+  cy.get("@error").its("status").should("equal", 400);
   });
-});
+})
+
 
 describe("movieApp checkup, looking for two divs", () => {
   it("should click for the movie", () => {
